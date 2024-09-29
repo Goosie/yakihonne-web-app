@@ -42,4 +42,4 @@ YakiHonne also runs its own relays under [nostr-01.yakihonne.com](https://nostr-
 - Navigate to the main directory: `cd client`
 - Install dependencies: `npm install`
 - Run the app: `npm start`
-- Test git proces
+- Test git proces one more time

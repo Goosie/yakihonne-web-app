@@ -39,7 +39,7 @@ YakiHonne also runs its own relays under [nostr-01.yakihonne.com](https://nostr-
 # Run YakiHonne locally
 
 - Clone the repository: `https://github.com/YakiHonne/yakihonne-web-app.git`
-- Navigate to the main directory: `cd client`
+- Navigate to the main directory: `cd Client`
 - Install dependencies: `npm install`
 - Run the app: `npm start`
 - Test git proces one more time

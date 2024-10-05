@@ -42,6 +42,11 @@ import ToPublishDraftsNOSTR from "../../Components/NOSTR/ToPublishDraftsNOSTR";
 import katex from "katex";
 import "katex/dist/katex.css";
 import axiosInstance from "../../Helpers/HTTP_Client";
+import L from 'leaflet';
+import 'leaflet-routing-machine';
+import 'leaflet/dist/leaflet.css';
+import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
+
 const pool = new SimplePool();
 
 const getUploadsHistory = () => {
@@ -146,6 +151,56 @@ export default function NostrWriting() {
       }
     }
   };
+
+  useEffect(() => {
+    // This effect will run after the component mounts
+    initializeMap();
+  }, []);
+
+  const mapStyle = {
+    width: '100%',
+    height: '400px',
+    marginBottom: '10px'
+  };
+
+  function initializeMap() {
+    if (typeof window !== 'undefined') {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+          const userLat = position.coords.latitude;
+          const userLng = position.coords.longitude;
+          const map = L.map('map').setView([userLat, userLng], 13);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+          }).addTo(map);
+          initializeRoutingControl(map);
+        }, function() {
+          initializeMapAtDefaultLocation();
+        });
+      } else {
+        initializeMapAtDefaultLocation();
+      }
+    }
+  }
+
+  function initializeMapAtDefaultLocation() {
+    if (typeof window !== 'undefined') {
+      const map = L.map('map').setView([51.505, -0.09], 13);  // Default to London if geolocation fails
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+      initializeRoutingControl(map);
+    }
+  }
+
+  function initializeRoutingControl(map) {
+    // ... (paste the entire initializeRoutingControl function here)
+    // Make sure to use the `map` parameter instead of the global `map` variable
+  }
+
+  // ... (continue pasting all the other functions from the script)
+  // Make sure to pass `map` as a parameter to functions that need it, instead of using a global variable
+
   if (!nostrUserLoaded) return <LoadingScreen />;
   return (
     <>
@@ -461,7 +516,12 @@ export default function NostrWriting() {
                         </div>
                       </div>
                     </div>
-Place her the Leaflet
+                    <div id="map" style={mapStyle}></div>
+                    <button id="saveRoute" style={{ display: 'none' }}>Save Route</button>
+                    <button id="clearRoute">Clear Route</button>
+                    <button id="showSavedRoutes">Show Saved Routes</button>
+                    <button id="myLocationBtn">My Location</button>
+                    <select id="savedRoutesDropdown" style={{ display: 'none' }}></select>
                     <div data-color-mode="light" className="article" dir="auto">
                       <MDEditor
                         height={"70vh"}

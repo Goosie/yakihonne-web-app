@@ -408,7 +408,7 @@ export default function NostrWriting() {
                           className="h1-txt fit-container"
                           onChange={handleChange}
                           value={title}
-                          placeholder="Give me a catchy title"
+                          placeholder="Give the tour a nice name"
                         />
                       </div>
                       <div

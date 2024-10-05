@@ -461,7 +461,7 @@ export default function NostrWriting() {
                         </div>
                       </div>
                     </div>
-
+Place her the Leaflet
                     <div data-color-mode="light" className="article" dir="auto">
                       <MDEditor
                         height={"70vh"}

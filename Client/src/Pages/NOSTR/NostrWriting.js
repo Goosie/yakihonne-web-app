@@ -1,5 +1,4 @@
-import React, { useEffect } from "react";
-import { useContext } from "react";
+import React, { useEffect, useState, useRef, useContext } from "react";
 import SidebarNOSTR from "../../Components/NOSTR/SidebarNOSTR";
 import MDEditor, {
   commands,
@@ -30,7 +29,6 @@ import MDEditor, {
   image,
 } from "@uiw/react-md-editor";
 import { Context } from "../../Context/Context";
-import { useState } from "react";
 import NavbarNOSTR from "../../Components/NOSTR/NavbarNOSTR";
 import PagePlaceholder from "../../Components/PagePlaceholder";
 import ToPublishNOSTR from "../../Components/NOSTR/ToPublishNOSTR";
@@ -80,6 +78,12 @@ export default function NostrWriting() {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadsHistory, setUploadsHistory] = useState(getUploadsHistory());
   const [showUploadsHistory, setShowUploadsHistory] = useState(false);
+  const [waypoints, setWaypoints] = useState([]);
+  const [isRouteClear, setIsRouteClear] = useState(true);
+  const mapRef = useRef(null);
+  const mapContainerRef = useRef(null);
+  const controlRef = useRef(null);
+  const routeTimerRef = useRef(null);
 
   const handleChange = (e) => {
     let value = e.target.value;
@@ -153,9 +157,16 @@ export default function NostrWriting() {
   };
 
   useEffect(() => {
-    // This effect will run after the component mounts
-    initializeMap();
-  }, []);
+    if (mapContainerRef.current && !mapRef.current) {
+      initializeMap();
+    }
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [nostrUser]);
 
   const mapStyle = {
     width: '100%',
@@ -164,42 +175,97 @@ export default function NostrWriting() {
   };
 
   function initializeMap() {
-    if (typeof window !== 'undefined') {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(position) {
-          const userLat = position.coords.latitude;
-          const userLng = position.coords.longitude;
-          const map = L.map('map').setView([userLat, userLng], 13);
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-          }).addTo(map);
-          initializeRoutingControl(map);
-        }, function() {
-          initializeMapAtDefaultLocation();
+    if (typeof window !== 'undefined' && mapContainerRef.current && !mapRef.current) {
+      mapRef.current = L.map(mapContainerRef.current).setView([51.505, -0.09], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(mapRef.current);
+      initializeRoutingControl();
+    }
+  }
+
+  function initializeRoutingControl() {
+    if (controlRef.current) {
+      mapRef.current.removeControl(controlRef.current);
+    }
+    controlRef.current = L.Routing.control({
+      waypoints: [],
+      routeWhileDragging: true,
+      createMarker: function(i, waypoint, n) {
+        const marker = L.marker(waypoint.latLng, { draggable: true });
+        marker.on('dragend', () => {
+          updateRoute();
         });
-      } else {
-        initializeMapAtDefaultLocation();
+        return marker;
+      },
+    }).addTo(mapRef.current);
+    controlRef.current.hide();
+
+    mapRef.current.on('click', handleMapClick);
+  }
+
+  function handleMapClick(e) {
+    if (isRouteClear) {
+      const newWaypoints = [...waypoints, e.latlng];
+      setWaypoints(newWaypoints);
+      updateRoute(newWaypoints);
+      clearTimeout(routeTimerRef.current);
+      routeTimerRef.current = setTimeout(() => createRoute(newWaypoints), 3000);
+    }
+  }
+
+  function updateRoute(newWaypoints = waypoints) {
+    if (controlRef.current) {
+      controlRef.current.setWaypoints(newWaypoints);
+    }
+  }
+
+  function createRoute(newWaypoints) {
+    if (newWaypoints.length >= 2) {
+      const closedRoute = [...newWaypoints, newWaypoints[0]];
+      setWaypoints(closedRoute);
+      updateRoute(closedRoute);
+      setIsRouteClear(false);
+      if (mapRef.current) {
+        mapRef.current.fitBounds(L.latLngBounds(closedRoute));
       }
     }
   }
 
-  function initializeMapAtDefaultLocation() {
-    if (typeof window !== 'undefined') {
-      const map = L.map('map').setView([51.505, -0.09], 13);  // Default to London if geolocation fails
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-      }).addTo(map);
-      initializeRoutingControl(map);
+  function clearRoute() {
+    setWaypoints([]);
+    setIsRouteClear(true);
+    if (controlRef.current) {
+      controlRef.current.setWaypoints([]);
+    }
+    if (mapRef.current) {
+      mapRef.current.eachLayer((layer) => {
+        if (layer instanceof L.Marker || layer instanceof L.Polyline) {
+          mapRef.current.removeLayer(layer);
+        }
+      });
     }
   }
 
-  function initializeRoutingControl(map) {
-    // ... (paste the entire initializeRoutingControl function here)
-    // Make sure to use the `map` parameter instead of the global `map` variable
+  function showSavedRoutes() {
+    // Implement showing saved routes functionality
+    console.log("Show saved routes");
   }
 
-  // ... (continue pasting all the other functions from the script)
-  // Make sure to pass `map` as a parameter to functions that need it, instead of using a global variable
+  function goToMyLocation() {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const { latitude, longitude } = position.coords;
+        if (mapRef.current) {
+          mapRef.current.setView([latitude, longitude], 13);
+        }
+      }, () => {
+        alert("Unable to retrieve your location");
+      });
+    } else {
+      alert("Geolocation is not supported by your browser");
+    }
+  }
 
   if (!nostrUserLoaded) return <LoadingScreen />;
   return (
@@ -516,11 +582,11 @@ export default function NostrWriting() {
                         </div>
                       </div>
                     </div>
-                    <div id="map" style={mapStyle}></div>
+                    <div ref={mapContainerRef} style={mapStyle}></div>
                     <button id="saveRoute" style={{ display: 'none' }}>Save Route</button>
-                    <button id="clearRoute">Clear Route</button>
-                    <button id="showSavedRoutes">Show Saved Routes</button>
-                    <button id="myLocationBtn">My Location</button>
+                    <button id="clearRoute" onClick={clearRoute}>Clear Route</button>
+                    <button id="showSavedRoutes" onClick={showSavedRoutes}>Show Saved Routes</button>
+                    <button id="myLocationBtn" onClick={goToMyLocation}>My Location</button>
                     <select id="savedRoutesDropdown" style={{ display: 'none' }}></select>
                     <div data-color-mode="light" className="article" dir="auto">
                       <MDEditor
